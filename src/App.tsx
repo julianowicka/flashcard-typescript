@@ -1,24 +1,30 @@
 import React from 'react';
-import logo from './logo.svg';
 import './App.css';
+import Flashcard, {IFlashcard} from "./components/Flashcard/Flashcard";
 
 function App() {
+
+    const mockFlashcard = ():IFlashcard[] =>{
+
+        let mockFlashcards:IFlashcard[] = [];
+        for (let i=0; i<10; i++) {
+            mockFlashcards.push({
+                answer: `answer ${i}`,
+                question: `question ${i}`,
+                isLearned: i%2 === 1,
+            })
+        }
+
+        return mockFlashcards
+    }
+
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+
+        {
+            mockFlashcard().map((flashcard: IFlashcard, index: number) => <span key={index}><Flashcard answer={flashcard.answer} question={flashcard.question} isLearned={flashcard.isLearned} /></span>)
+        }
+
     </div>
   );
 }
