@@ -19,17 +19,27 @@ function App() {
     }
     const [flashcards, setFlashcards] = useState(mockFlashcard());
 
-    const [inputValue, setInputValue] = useState("")
+    const [questionInputValue, setQuestionInputValue] = useState("")
 
-    const handleChange: ChangeEventHandler<HTMLInputElement> = (event) => {
-        setInputValue(event.target.value)
+    const handleChangeQuestion: ChangeEventHandler<HTMLInputElement> = (event) => {
+        setQuestionInputValue(event.target.value);
     }
+
+    const [answerInputValue, setAnswerInputValue] = useState("")
+
+    const handleChangeAnswer: ChangeEventHandler<HTMLInputElement> = (event) =>{
+        setAnswerInputValue(event.target.value);
+    }
+
     const handleAddFlashcard = () => {
         const newFlashcards: IFlashcard[] = [...flashcards];
-        newFlashcards.push({answer: "new answer", question: inputValue, isLearned: true});
+        newFlashcards.push({answer: answerInputValue, question: questionInputValue, isLearned: true});
         console.log("newFlashcards");
         console.log(newFlashcards);
         setFlashcards(newFlashcards);
+        setAnswerInputValue("");
+        setQuestionInputValue("");
+
     }
 
     return (
@@ -47,7 +57,8 @@ function App() {
                     </span>)
                 )
             }
-            <input onChange={handleChange} value={inputValue}/>
+            <input onChange={handleChangeQuestion} value={questionInputValue}/>
+            <input onChange={handleChangeAnswer} value={answerInputValue}/>
             <button onClick={handleAddFlashcard}>Dodaj</button>
         </div>
     );
