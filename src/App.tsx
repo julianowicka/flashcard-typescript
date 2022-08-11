@@ -8,7 +8,7 @@ function App() {
     const mockFlashcard = (): IFlashcard[] => {
 
         let mockFlashcards: IFlashcard[] = [];
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 2; i++) {
             mockFlashcards.push({
                 answer: `answer ${i}`,
                 question: `question ${i}`,
