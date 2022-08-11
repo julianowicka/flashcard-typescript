@@ -2,5 +2,5 @@
 
 ## Live preview:
 
- [Flashcards link] (http://js-flashcard.herokuapp.com/)
+ [Flashcards link](http://js-flashcard.herokuapp.com/)
  
