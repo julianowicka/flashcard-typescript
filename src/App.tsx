@@ -1,6 +1,7 @@
 import React, {ChangeEventHandler, useState} from 'react';
 import './App.css';
 import Flashcard, {IFlashcard} from "./components/Flashcard/Flashcard";
+import {Button, TextField} from "@mui/material";
 
 function App() {
 
@@ -61,9 +62,14 @@ function App() {
                     </span>)
                 )
             }
-            <input onChange={handleChangeQuestion} value={questionInputValue}/>
-            <input onChange={handleChangeAnswer} value={answerInputValue}/>
-            <button onClick={handleAddFlashcard}>Dodaj</button>
+            <div style={{margin: "40px 0 200px 0"}}>
+                <TextField label="Question" variant="outlined" onChange={handleChangeQuestion}
+                           value={questionInputValue}/>
+                <TextField style={{margin: "0 0 0 15px"}} label="Answer" variant="outlined"
+                           onChange={handleChangeAnswer} value={answerInputValue}/>
+                <Button style={{margin: "0 0 0 15px", height: "56px"}} variant="outlined"
+                        onClick={handleAddFlashcard}>Dodaj</Button>
+            </div>
         </div>
     );
 }
