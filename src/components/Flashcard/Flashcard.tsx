@@ -1,4 +1,5 @@
-import React from "react";
+import React, {useState} from "react";
+import {Typography} from "@mui/material";
 
 export interface IFlashcard {
     question: string,
@@ -8,14 +9,33 @@ export interface IFlashcard {
 
 export const Flashcard = ({question, answer, isLearned}: IFlashcard) => {
 
-    console.log(answer, question, isLearned);
+    const [isReversed, setIsReversed] = useState(false);
 
-    return <div>
+    const handleFlipCard = () => {
+        setIsReversed(!isReversed);
+    };
 
-        <p>{answer}</p>
-        <p>{question}</p>
-        <p>{isLearned ? "I know this" : "False"}</p>
-
+    return <div onClick={handleFlipCard} style={{
+        border: "1px solid",
+        borderRadius: "32px",
+        margin: "40px 0px 0px 0px",
+        width: "500px",
+        height: "250px",
+        boxShadow: "8px 8px 28px 2px rgba(66, 68, 90, 1)",
+        display: "flex",
+        justifyContent: "center",
+        flexDirection: "column"
+    }}>
+        {isReversed ? (
+            <Typography variant="h6" component="div">
+                {answer}
+            </Typography>
+        ) : (
+            <>
+                <Typography variant="h6" component="div">{question}</Typography>
+                <Typography variant="h6" component="div">{isLearned ? "I know this" : "False"}</Typography>
+            </>
+        )}
     </div>
 }
 
