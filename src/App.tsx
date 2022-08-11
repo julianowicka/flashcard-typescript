@@ -35,8 +35,6 @@ function App() {
     const handleAddFlashcard = () => {
         const newFlashcards: IFlashcard[] = [...flashcards];
         newFlashcards.push({answer: answerInputValue, question: questionInputValue, isLearned: true});
-        console.log("newFlashcards");
-        console.log(newFlashcards);
         setFlashcards(newFlashcards);
         setAnswerInputValue("");
         setQuestionInputValue("");
