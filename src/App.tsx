@@ -27,7 +27,7 @@ function App() {
 
     const [answerInputValue, setAnswerInputValue] = useState("")
 
-    const handleChangeAnswer: ChangeEventHandler<HTMLInputElement> = (event) =>{
+    const handleChangeAnswer: ChangeEventHandler<HTMLInputElement> = (event) => {
         setAnswerInputValue(event.target.value);
     }
 
