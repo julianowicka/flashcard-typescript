@@ -15,16 +15,22 @@ export const Flashcard = ({question, answer, isLearned}: IFlashcard) => {
         setIsReversed(!isReversed);
     };
 
+    const flashcardWidth = () => {
+        return Math.min(500, window.innerWidth -40);
+    }
+
     return <div onClick={handleFlipCard} style={{
         border: "1px solid",
         borderRadius: "32px",
         margin: "40px 0px 0px 0px",
-        width: "500px",
+        width: flashcardWidth()+"px",
         height: "250px",
         boxShadow: "8px 8px 28px 2px rgba(66, 68, 90, 1)",
         display: "flex",
         justifyContent: "center",
-        flexDirection: "column"
+        flexDirection: "column",
+        maxWidth: "90%",
+
     }}>
         {isReversed ? (
             <Typography variant="h6" component="div">
