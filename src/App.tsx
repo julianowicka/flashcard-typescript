@@ -3,26 +3,14 @@ import './App.css';
 import Flashcard from "./components/Flashcard/Flashcard";
 import {Button, TextField} from "@mui/material";
 import {FlashcardModel} from "./components/Flashcard/FlashcardModel";
+import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
+import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
+import {mockFlashcards} from "./components/Flashcard/util/mockFlashcards";
 
 function App() {
+    const [flashcards, setFlashcards] = useState(mockFlashcards());
 
-    const mockFlashcard = (): FlashcardModel[] => {
-
-        let mockFlashcards: FlashcardModel[] = [];
-        mockFlashcards.push({
-            question: "Czym są async/await?",
-            answer: "Obydwa słowa kluczowe wiążą się z obietnicami. Pierwsze z nich - async - wstawione przed deklaracją funkcji sprawi, że taka funkcja zwróci obietnicę. Drugie z nich - await - może wystąpić tylko wewnątrz funkcji poprzedzonej przez async i powinno się znaleźć przed wykonaniem funkcji asynchronicznej. Sprawi, że wykonanie nie przejdzie dalej, dopóki obietnica nie zostanie wykonana. Dzięki temu asynchroniczny kod przypomina swoim zachowaniem kod synchroniczny.\n",
-            isLearned: false,
-        });
-        mockFlashcards.push({
-            question: "Czym jest obietnica (promise)?",
-            answer: "Obietnice to obiekty, które reprezentują wykonanie (sukcesem lub porażką) operacji asynchronicznej. Są tak nazwane, bo wykonywana funkcja asynchroniczna musi złożyć obietnicę dostarczenia w przyszłości wartości. Po zakończeniu operacji asynchronicznej jej wynik może zostać obsłużony przez wywołanie na obietnicy metody then.",
-            isLearned: false,
-        });
-
-        return mockFlashcards
-    }
-    const [flashcards, setFlashcards] = useState(mockFlashcard());
+    const [currentFlashcard, setCurrentFlashcard] = useState(flashcards[0]);
 
     const toggleIsLearned = (index: number, checked: boolean) => {
         const newFlashcard: FlashcardModel[] = [...flashcards];
@@ -49,8 +37,14 @@ function App() {
         setFlashcards(newFlashcards);
         setAnswerInputValue("");
         setQuestionInputValue("");
+        alert(newFlashcards.map((f)=>f.question));
 
     }
+
+    const flashcardWidth = () => {
+        return Math.min(1000, window.innerWidth);
+    }
+
 
     return (
         <div className="App" style={{
@@ -58,21 +52,33 @@ function App() {
             flexDirection: "column",
             alignItems: "center"
         }}>
+            <div
 
-            {
-                flashcards.map(
-                    (flashcard: FlashcardModel, index: number) => (
-                        <span key={index}>
-                        <Flashcard
-                            answer={flashcard.answer}
-                            question={flashcard.question}
-                            isLearned={flashcard.isLearned}
-                            toggleIsLearnedFunction={toggleIsLearned}
-                            flashcardIndex={index}
-                        />
-                    </span>)
-                )
-            }
+                style={{
+                    display: "flex",
+                    width: flashcardWidth() + "px",
+                }}
+            >
+                <Button variant="text"
+                        style={{width: "30px"}}
+                >
+                    <ArrowBackIosNewIcon/>
+                </Button>
+                <Flashcard
+                    answer={currentFlashcard.answer}
+                    question={currentFlashcard.question}
+                    isLearned={currentFlashcard.isLearned}
+                    toggleIsLearnedFunction={toggleIsLearned}
+                    flashcardIndex={0}
+                />
+                <Button variant="text"
+                        style={{width: "30px"}}
+                >
+                    <ArrowForwardIosIcon/>
+                </Button>
+            </div>
+
+
             <div style={{margin: "40px 0 200px 0"}}>
                 <TextField label="Question" variant="outlined" onChange={handleChangeQuestion}
                            value={questionInputValue}/>

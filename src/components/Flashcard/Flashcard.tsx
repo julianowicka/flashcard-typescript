@@ -18,9 +18,6 @@ export const Flashcard = (props: FlashcardProps) => {
         setIsReversed(!isReversed);
     };
 
-    const flashcardWidth = () => {
-        return Math.min(1000, window.innerWidth - 40);
-    }
 
     const handleToggleIsLearned = (event: React.ChangeEvent<HTMLInputElement>, checked: boolean): void => {
         toggleIsLearnedFunction(flashcardIndex, checked);
@@ -37,8 +34,8 @@ export const Flashcard = (props: FlashcardProps) => {
         border: "1px solid",
         borderRadius: "32px",
         margin: "40px 0px 0px 0px",
+        width: "calc(100% - 60px)",
         padding: "15px",
-        width: flashcardWidth() + "px",
         minHeight: "500px",
         boxShadow: "8px 8px 28px 2px rgba(66, 68, 90, 1)",
         display: "flex",
