@@ -39,7 +39,7 @@ export const Flashcard = (props: FlashcardProps) => {
         margin: "40px 0px 0px 0px",
         padding: "15px",
         width: flashcardWidth() + "px",
-        height: "500px",
+        minHeight: "500px",
         boxShadow: "8px 8px 28px 2px rgba(66, 68, 90, 1)",
         display: "flex",
         justifyContent: "center",
