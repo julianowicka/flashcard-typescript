@@ -1,5 +1,5 @@
 import React, {MouseEventHandler, useState} from "react";
-import {Checkbox, FormControlLabel, Typography} from "@mui/material";
+import {Checkbox, FormControlLabel, Typography, Card, CardContent} from "@mui/material";
 
 interface FlashcardProps {
     question: string,
@@ -12,10 +12,10 @@ interface FlashcardProps {
 export const Flashcard = (props: FlashcardProps) => {
     const {question, answer, isLearned, toggleIsLearnedFunction, flashcardIndex} = props;
 
-    const [isReversed, setIsReversed] = useState(false);
+    const [isFlipped, setIsFlipped] = useState(false);
 
     const handleFlipCard = () => {
-        setIsReversed(!isReversed);
+        setIsFlipped(!isFlipped);
     };
 
 
@@ -30,42 +30,67 @@ export const Flashcard = (props: FlashcardProps) => {
 
     };
 
-    return <div onClick={handleFlipCard} style={{
-        border: "1px solid",
-        borderRadius: "32px",
-        margin: "40px 0px 0px 0px",
-        width: "calc(100% - 60px)",
-        padding: "15px",
-        minHeight: "500px",
-        boxShadow: "8px 8px 28px 2px rgba(66, 68, 90, 1)",
-        display: "flex",
-        justifyContent: "center",
-        flexDirection: "column",
-        maxWidth: "90%",
-        alignItems: "center",
+    return (
+        <Card 
+            onClick={handleFlipCard}
+            sx={{
+                minHeight: 300,
+                width: '100%',
+                cursor: 'pointer',
+                border: '1px solid #ddd',
+                backgroundColor: isFlipped ? '#f5f5f5' : '#fff'
+            }}
+        >
+            <CardContent sx={{ 
+                height: '100%', 
+                display: 'flex', 
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                textAlign: 'center',
+                p: 3
+            }}>
 
-    }}>
-        {isReversed ? (
-            <>
-                <Typography style={{margin: "0 0 15px 0"}} variant="h5" component="div">{question}</Typography>
-                <Typography variant="h6" component="div">
-                    {answer}
-                </Typography>
-               <FormControlLabel style={{padding: "10px"}} onClick={handleStopFlippingTheCard}
-                                       control={
-                                           <Checkbox checked={isLearned} onChange={handleToggleIsLearned}
-                                                     onClick={handleStopFlippingTheCard}/>
-                                       }
-                                       label="Flashcard learned"
-                />
-            </>
-        ) : (
-            <>
-                <Typography variant="h5" component="div">{question}</Typography>
-                <Typography variant="h6" component="div">{isLearned ? "I know this" : "False"}</Typography>
-            </>
-        )}
-    </div>
+
+                {isFlipped ? (
+                    <>
+                        <Typography variant="h6" sx={{ mb: 2, color: '#666' }}>
+                            Question:
+                        </Typography>
+                        <Typography variant="h5" sx={{ mb: 3 }}>
+                            {question}
+                        </Typography>
+                        <Typography variant="h6" sx={{ mb: 2, color: '#666' }}>
+                            Answer:
+                        </Typography>
+                        <Typography variant="body1" sx={{ mb: 3, p: 2, backgroundColor: '#f9f9f9', borderRadius: 1 }}>
+                            {answer}
+                        </Typography>
+                        <FormControlLabel 
+                            onClick={handleStopFlippingTheCard}
+                            control={
+                                <Checkbox 
+                                    checked={isLearned} 
+                                    onChange={handleToggleIsLearned}
+                                    onClick={handleStopFlippingTheCard}
+                                />
+                            }
+                            label="Mark as learned"
+                        />
+                    </>
+                ) : (
+                    <>
+                        <Typography variant="h5" sx={{ mb: 3 }}>
+                            {question}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: '#666' }}>
+                            Click to reveal the answer
+                        </Typography>
+                    </>
+                )}
+            </CardContent>
+        </Card>
+    );
 }
 
 export default Flashcard
