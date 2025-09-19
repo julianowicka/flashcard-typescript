@@ -1,6 +1,6 @@
 # Flashcard Learning App
 
-> Aplikacja do nauki z wykorzystaniem fiszek, stworzona w React i TypeScript. Projekt umożliwia efektywne zapamiętywanie materiału poprzez interaktywne karty do nauki. Idealny dla wszystkich, którzy chcą systematycznie poszerzać swoją wiedzę.
+> Aplikacja została stworzona w React 18 z TypeScriptem z użyciem Material-UI dla nowoczesnego, responsywnego interfejsu. Projekt oferuje interaktywne fiszki z animacjami, możliwość dodawania własnych kart, śledzenie postępów oraz pełne wsparcie dla testów jednostkowych (Jest + React Testing Library).
 
 > A modern, interactive flashcard application built with React and TypeScript for efficient learning and knowledge retention.
 
