@@ -1,4 +1,6 @@
-# 🎓 Flashcard Learning App
+# Flashcard Learning App
+
+> Aplikacja do nauki z wykorzystaniem fiszek, stworzona w React i TypeScript. Projekt umożliwia efektywne zapamiętywanie materiału poprzez interaktywne karty do nauki. Idealny dla wszystkich, którzy chcą systematycznie poszerzać swoją wiedzę.
 
 > A modern, interactive flashcard application built with React and TypeScript for efficient learning and knowledge retention.
 
@@ -6,7 +8,7 @@
 [![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
 [![Material-UI](https://img.shields.io/badge/Material--UI-0081CB?style=for-the-badge&logo=material-ui&logoColor=white)](https://mui.com/)
 
-## 🌟 Features
+## Features
 
 - **Interactive Flashcards**: Flip cards to reveal answers with smooth animations
 - **Progress Tracking**: Mark cards as learned to track your progress
@@ -16,15 +18,7 @@
 - **Modern UI**: Clean, professional interface built with Material-UI components
 - **TypeScript**: Full type safety for better development experience
 
-## 🚀 Live Demo
-
-[View Live Application](http://js-flashcard.herokuapp.com/) *(if still deployed)*
-
-## 📱 Screenshots
-
-*Screenshots will be added after UI improvements*
-
-## 🛠️ Technologies Used
+## Technologies Used
 
 - **Frontend**: React 18, TypeScript
 - **UI Framework**: Material-UI (MUI) v5
@@ -32,7 +26,7 @@
 - **Build Tool**: Create React App
 - **Testing**: Jest, React Testing Library
 
-## 🏃‍♂️ Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -63,14 +57,14 @@
 
 
 
-## 🧪 Available Scripts
+## Available Scripts
 
 - `npm start` - Runs the app in development mode
 - `npm test` - Launches the test runner
 - `npm run build` - Builds the app for production
 - `npm run eject` - Ejects from Create React App (⚠️ irreversible)
 
-## 🔮 Future Enhancements
+## Future Enhancements
 
 - [ ] Local storage persistence
 - [ ] Import/Export flashcard sets
@@ -79,22 +73,4 @@
 - [ ] Study statistics and analytics
 - [ ] Dark mode theme
 - [ ] Offline support (PWA)
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📄 License
-
-This project is open source and available under the [MIT License](LICENSE).
-
-## 👨‍💻 Author
-
-**Julia Nowicka**
-- GitHub: [@julianowicka](https://github.com/julianowicka)
-- LinkedIn: [Your LinkedIn Profile](https://linkedin.com/in/yourprofile)
-
----
-
-⭐ If you found this project helpful, please give it a star!
  
