@@ -1,5 +1,5 @@
-import React, {MouseEventHandler, useState} from "react";
-import {Checkbox, FormControlLabel, Typography, Card, CardContent} from "@mui/material";
+import React, {MouseEventHandler, useEffect, useState} from "react";
+import {Box, Checkbox, Chip, FormControlLabel, Typography, Card, CardContent} from "@mui/material";
 
 interface FlashcardProps {
     question: string,
@@ -7,12 +7,20 @@ interface FlashcardProps {
     isLearned: boolean,
     toggleIsLearnedFunction: (i: number, checked: boolean) => void,
     flashcardIndex: number,
+    sourceLanguage?: string,
+    targetLanguage?: string,
+    example?: string,
+    level?: string,
 }
 
 export const Flashcard = (props: FlashcardProps) => {
-    const {question, answer, isLearned, toggleIsLearnedFunction, flashcardIndex} = props;
+    const {question, answer, isLearned, toggleIsLearnedFunction, flashcardIndex, sourceLanguage, targetLanguage, example, level} = props;
 
     const [isFlipped, setIsFlipped] = useState(false);
+
+    useEffect(() => {
+        setIsFlipped(false);
+    }, [question, answer]);
 
     const handleFlipCard = () => {
         setIsFlipped(!isFlipped);
@@ -54,6 +62,14 @@ export const Flashcard = (props: FlashcardProps) => {
 
                 {isFlipped ? (
                     <>
+                        <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
+                            {sourceLanguage && targetLanguage && (
+                                <Chip size="small" label={`${sourceLanguage} -> ${targetLanguage}`} />
+                            )}
+                            {level && (
+                                <Chip size="small" label={level} variant="outlined" />
+                            )}
+                        </Box>
                         <Typography variant="h6" sx={{ mb: 2, color: '#666' }}>
                             Question:
                         </Typography>
@@ -66,6 +82,11 @@ export const Flashcard = (props: FlashcardProps) => {
                         <Typography variant="body1" sx={{ mb: 3, p: 2, backgroundColor: '#f9f9f9', borderRadius: 1 }}>
                             {answer}
                         </Typography>
+                        {example && (
+                            <Typography variant="body2" sx={{ mb: 3, color: '#555', fontStyle: 'italic' }}>
+                                {example}
+                            </Typography>
+                        )}
                         <FormControlLabel 
                             onClick={handleStopFlippingTheCard}
                             control={

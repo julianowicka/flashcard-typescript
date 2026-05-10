@@ -1,4 +1,4 @@
-import {FlashcardModel} from "../FlashcardModel";
+import {DeckModel, FlashcardModel} from "../FlashcardModel";
 
 export const mockFlashcards = (): FlashcardModel[] => {
     const mockFlashcards: FlashcardModel[] = [];
@@ -58,3 +58,68 @@ export const mockFlashcards = (): FlashcardModel[] => {
 
     return mockFlashcards;
 }
+
+const languageCard = (
+    sourceText: string,
+    targetText: string,
+    sourceLanguage: string,
+    targetLanguage: string,
+    level: string,
+    example: string,
+    tags: string[] = []
+): FlashcardModel => ({
+    question: sourceText,
+    answer: targetText,
+    sourceText,
+    targetText,
+    sourceLanguage,
+    targetLanguage,
+    example,
+    tags,
+    level,
+    isLearned: false,
+});
+
+export const mockDecks = (): DeckModel[] => [
+    {
+        id: "spanish-a1-a2",
+        name: "Hiszpanski A1-A2",
+        description: "Podstawowe slowa, zwroty i mini-zdania do codziennej komunikacji.",
+        sourceLanguage: "Polski",
+        targetLanguage: "Hiszpanski",
+        level: "A1-A2",
+        flashcards: [
+            languageCard("dziekuje", "gracias", "Polski", "Hiszpanski", "A1", "Gracias por tu ayuda.", ["zwroty"]),
+            languageCard("poprosze kawe", "un cafe, por favor", "Polski", "Hiszpanski", "A1", "Un cafe, por favor.", ["restauracja"]),
+            languageCard("ile to kosztuje?", "cuanto cuesta?", "Polski", "Hiszpanski", "A1", "Cuanto cuesta este libro?", ["zakupy"]),
+            languageCard("jestem z Polski", "soy de Polonia", "Polski", "Hiszpanski", "A1", "Hola, soy de Polonia.", ["przedstawianie"]),
+            languageCard("potrzebuje pomocy", "necesito ayuda", "Polski", "Hiszpanski", "A2", "Necesito ayuda con mi reserva.", ["podroz"]),
+            languageCard("dzisiaj jest ladna pogoda", "hace buen tiempo hoy", "Polski", "Hiszpanski", "A2", "Hace buen tiempo hoy en Madrid.", ["pogoda"]),
+        ],
+    },
+    {
+        id: "english-b2",
+        name: "Angielski B2",
+        description: "Praktyczne slownictwo B2: rozmowy, praca, opinie i argumentacja.",
+        sourceLanguage: "Polski",
+        targetLanguage: "Angielski",
+        level: "B2",
+        flashcards: [
+            languageCard("uzasadnic decyzje", "to justify a decision", "Polski", "Angielski", "B2", "You need to justify your decision with clear arguments.", ["praca"]),
+            languageCard("mimo wszystko", "nevertheless", "Polski", "Angielski", "B2", "The task was difficult; nevertheless, we finished it on time.", ["laczniki"]),
+            languageCard("wyciagnac wnioski", "to draw conclusions", "Polski", "Angielski", "B2", "It is too early to draw conclusions.", ["argumentacja"]),
+            languageCard("miec tendencje do", "to tend to", "Polski", "Angielski", "B2", "People tend to remember stories better than facts.", ["czasowniki"]),
+            languageCard("wymagajacy", "demanding", "Polski", "Angielski", "B2", "The course is demanding but very useful.", ["przymiotniki"]),
+            languageCard("z mojego punktu widzenia", "from my point of view", "Polski", "Angielski", "B2", "From my point of view, this solution is more reliable.", ["opinie"]),
+        ],
+    },
+    {
+        id: "programming",
+        name: "Programowanie",
+        description: "Dotychczasowe fiszki techniczne zachowane jako osobna talia.",
+        sourceLanguage: "English",
+        targetLanguage: "English",
+        level: "Mixed",
+        flashcards: mockFlashcards(),
+    },
+];
