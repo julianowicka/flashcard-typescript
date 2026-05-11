@@ -6,6 +6,7 @@ import {
     Button,
     Chip,
     Container,
+    Alert,
     IconButton,
     LinearProgress,
     Paper,
@@ -33,6 +34,13 @@ const EMPTY_FLASHCARDS: FlashcardModel[] = [];
 interface StudyEntry {
     flashcard: FlashcardModel,
     deckIndex: number,
+}
+
+type StudyMode = "flashcards" | "learn";
+
+interface LearnResult {
+    isCorrect: boolean,
+    correctAnswer: string,
 }
 
 const loadInitialDecks = (): DeckModel[] => {
@@ -63,6 +71,24 @@ const shuffleIndexes = (indexes: number[]): number[] => {
     return shuffledIndexes;
 };
 
+const normalizeAnswer = (value: string): string => {
+    return value
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[?!.,"']/g, "")
+        .replace(/\s+/g, " ");
+};
+
+const getLearningText = (flashcard: FlashcardModel, isReversed: boolean, side: "question" | "answer"): string => {
+    if (side === "question") {
+        return isReversed ? flashcard.answer : flashcard.question;
+    }
+
+    return isReversed ? flashcard.question : flashcard.answer;
+};
+
 function App() {
     const [decks, setDecks] = useState<DeckModel[]>(loadInitialDecks);
     const [selectedDeckId, setSelectedDeckId] = useState(decks[0]?.id ?? "");
@@ -74,6 +100,11 @@ function App() {
     const [shuffleOrder, setShuffleOrder] = useState<number[]>([]);
     const [showStarredOnly, setShowStarredOnly] = useState(false);
     const [showNeedsPracticeOnly, setShowNeedsPracticeOnly] = useState(false);
+    const [studyMode, setStudyMode] = useState<StudyMode>("flashcards");
+    const [learnIndex, setLearnIndex] = useState(0);
+    const [writtenAnswer, setWrittenAnswer] = useState("");
+    const [selectedChoice, setSelectedChoice] = useState("");
+    const [learnResult, setLearnResult] = useState<LearnResult | null>(null);
 
     const currentDeck = decks.find(deck => deck.id === selectedDeckId) ?? decks[0];
     const flashcards = currentDeck?.flashcards ?? EMPTY_FLASHCARDS;
@@ -108,9 +139,31 @@ function App() {
     const currentFlashcard = currentEntry?.flashcard;
     const displayedQuestion = isReversed ? currentFlashcard?.answer : currentFlashcard?.question;
     const displayedAnswer = isReversed ? currentFlashcard?.question : currentFlashcard?.answer;
+    const currentLearnEntry = visibleEntries[learnIndex];
+    const currentLearnFlashcard = currentLearnEntry?.flashcard;
+    const learnQuestion = currentLearnFlashcard ? getLearningText(currentLearnFlashcard, isReversed, "question") : "";
+    const learnAnswer = currentLearnFlashcard ? getLearningText(currentLearnFlashcard, isReversed, "answer") : "";
+    const learnQuestionType = learnIndex % 2 === 0 ? "written" : "choice";
     const learnedCount = flashcards.filter(card => card.isLearned).length;
     const starredCount = flashcards.filter(card => card.isStarred).length;
     const needsPracticeCount = flashcards.filter(card => !card.isLearned || (card.incorrectCount ?? 0) > 0).length;
+
+    const answerOptions = useMemo<string[]>(() => {
+        if (!currentLearnFlashcard) {
+            return [];
+        }
+
+        const distractors = visibleEntries
+            .map(entry => getLearningText(entry.flashcard, isReversed, "answer"))
+            .filter(answer => normalizeAnswer(answer) !== normalizeAnswer(learnAnswer));
+        const uniqueDistractors = Array.from(new Set(distractors));
+        const selectedDistractors = shuffleIndexes(uniqueDistractors.map((_, index) => index))
+            .slice(0, 3)
+            .map(index => uniqueDistractors[index]);
+
+        return shuffleIndexes([learnAnswer, ...selectedDistractors].map((_, index) => index))
+            .map(index => [learnAnswer, ...selectedDistractors][index]);
+    }, [currentLearnFlashcard, isReversed, learnAnswer, visibleEntries]);
 
     useEffect(() => {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(decks));
@@ -121,6 +174,18 @@ function App() {
             setCurrentIndex(Math.max(visibleEntries.length - 1, 0));
         }
     }, [currentIndex, visibleEntries.length]);
+
+    useEffect(() => {
+        if (learnIndex > visibleEntries.length - 1) {
+            setLearnIndex(Math.max(visibleEntries.length - 1, 0));
+        }
+    }, [learnIndex, visibleEntries.length]);
+
+    useEffect(() => {
+        setWrittenAnswer("");
+        setSelectedChoice("");
+        setLearnResult(null);
+    }, [learnIndex, learnQuestion, learnAnswer, studyMode]);
 
     const updateSelectedDeck = (updater: (flashcards: FlashcardModel[]) => FlashcardModel[]) => {
         setDecks(previousDecks => previousDecks.map(deck => {
@@ -148,6 +213,7 @@ function App() {
     const handleSelectDeck = (deckId: string) => {
         setSelectedDeckId(deckId);
         setCurrentIndex(0);
+        setLearnIndex(0);
         setShuffleOrder([]);
     };
 
@@ -159,21 +225,46 @@ function App() {
         }));
     };
 
+    const recordAnswer = (deckIndex: number, isCorrect: boolean) => {
+        updateFlashcardAtDeckIndex(deckIndex, flashcard => ({
+            ...flashcard,
+            isLearned: isCorrect,
+            correctCount: (flashcard.correctCount ?? 0) + (isCorrect ? 1 : 0),
+            incorrectCount: (flashcard.incorrectCount ?? 0) + (isCorrect ? 0 : 1),
+            lastReviewedAt: new Date().toISOString(),
+        }));
+    };
+
     const markCurrentFlashcard = (isKnown: boolean) => {
         if (!currentEntry) {
             return;
         }
 
-        updateFlashcardAtDeckIndex(currentEntry.deckIndex, flashcard => ({
-            ...flashcard,
-            isLearned: isKnown,
-            correctCount: (flashcard.correctCount ?? 0) + (isKnown ? 1 : 0),
-            incorrectCount: (flashcard.incorrectCount ?? 0) + (isKnown ? 0 : 1),
-            lastReviewedAt: new Date().toISOString(),
-        }));
+        recordAnswer(currentEntry.deckIndex, isKnown);
 
         if (currentIndex < visibleEntries.length - 1) {
             setCurrentIndex(currentIndex + 1);
+        }
+    };
+
+    const checkLearnAnswer = (answer: string) => {
+        if (!currentLearnEntry || learnResult) {
+            return;
+        }
+
+        const isCorrect = normalizeAnswer(answer) === normalizeAnswer(learnAnswer);
+        recordAnswer(currentLearnEntry.deckIndex, isCorrect);
+        setLearnResult({
+            isCorrect,
+            correctAnswer: learnAnswer,
+        });
+    };
+
+    const goToNextLearnQuestion = () => {
+        if (learnIndex < visibleEntries.length - 1) {
+            setLearnIndex(learnIndex + 1);
+        } else {
+            setLearnIndex(0);
         }
     };
 
@@ -236,16 +327,19 @@ function App() {
         setIsShuffled(nextIsShuffled);
         setShuffleOrder(nextIsShuffled ? shuffleIndexes(filteredEntries.map(entry => entry.deckIndex)) : []);
         setCurrentIndex(0);
+        setLearnIndex(0);
     };
 
     const toggleStarredFilter = () => {
         setShowStarredOnly(!showStarredOnly);
         setCurrentIndex(0);
+        setLearnIndex(0);
     };
 
     const toggleNeedsPracticeFilter = () => {
         setShowNeedsPracticeOnly(!showNeedsPracticeOnly);
         setCurrentIndex(0);
+        setLearnIndex(0);
     };
 
     const getProgress = () => {
@@ -321,6 +415,21 @@ function App() {
             </Box>
 
             <Paper sx={{ p: 3, mb: 4, border: '1px solid #ddd' }}>
+                <Stack direction="row" spacing={1} sx={{ justifyContent: 'center', mb: 2 }}>
+                    <Button
+                        variant={studyMode === "flashcards" ? "contained" : "outlined"}
+                        onClick={() => setStudyMode("flashcards")}
+                    >
+                        Flashcards
+                    </Button>
+                    <Button
+                        variant={studyMode === "learn" ? "contained" : "outlined"}
+                        onClick={() => setStudyMode("learn")}
+                    >
+                        Learn
+                    </Button>
+                </Stack>
+
                 <Stack direction="row" spacing={1} sx={{ justifyContent: 'center', flexWrap: 'wrap', rowGap: 1, mb: 2 }}>
                     <Tooltip title="Reverse direction">
                         <IconButton color={isReversed ? 'primary' : 'default'} onClick={() => setIsReversed(!isReversed)}>
@@ -344,73 +453,174 @@ function App() {
                     </Tooltip>
                 </Stack>
 
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-                    <Button
-                        variant="outlined"
-                        onClick={goToPrevious}
-                        disabled={currentIndex === 0}
-                    >
-                        <ArrowBackIosNewIcon/>
-                    </Button>
+                {studyMode === "flashcards" ? (
+                    <>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+                            <Button
+                                variant="outlined"
+                                onClick={goToPrevious}
+                                disabled={currentIndex === 0}
+                            >
+                                <ArrowBackIosNewIcon/>
+                            </Button>
 
-                    <Box sx={{ flex: 1, maxWidth: 600 }}>
-                        {currentFlashcard ? (
-                            <Flashcard
-                                answer={displayedAnswer ?? ""}
-                                question={displayedQuestion ?? ""}
-                                isLearned={currentFlashcard.isLearned}
-                                toggleIsLearnedFunction={toggleIsLearned}
-                                flashcardIndex={currentEntry.deckIndex}
-                                sourceLanguage={isReversed ? currentFlashcard.targetLanguage : currentFlashcard.sourceLanguage}
-                                targetLanguage={isReversed ? currentFlashcard.sourceLanguage : currentFlashcard.targetLanguage}
-                                example={currentFlashcard.example}
-                                level={currentFlashcard.level}
-                            />
+                            <Box sx={{ flex: 1, maxWidth: 600 }}>
+                                {currentFlashcard ? (
+                                    <Flashcard
+                                        answer={displayedAnswer ?? ""}
+                                        question={displayedQuestion ?? ""}
+                                        isLearned={currentFlashcard.isLearned}
+                                        toggleIsLearnedFunction={toggleIsLearned}
+                                        flashcardIndex={currentEntry.deckIndex}
+                                        sourceLanguage={isReversed ? currentFlashcard.targetLanguage : currentFlashcard.sourceLanguage}
+                                        targetLanguage={isReversed ? currentFlashcard.sourceLanguage : currentFlashcard.targetLanguage}
+                                        example={currentFlashcard.example}
+                                        level={currentFlashcard.level}
+                                    />
+                                ) : (
+                                    <Paper sx={{ p: 4, textAlign: 'center', border: '1px dashed #bbb' }}>
+                                        <Typography variant="h6">No cards match this view</Typography>
+                                    </Paper>
+                                )}
+                            </Box>
+
+                            <Button
+                                variant="outlined"
+                                onClick={goToNext}
+                                disabled={currentIndex === visibleEntries.length - 1 || visibleEntries.length === 0}
+                            >
+                                <ArrowForwardIosIcon/>
+                            </Button>
+                        </Box>
+
+                        <Stack direction="row" spacing={1} sx={{ justifyContent: 'center', mt: 2, flexWrap: 'wrap', rowGap: 1 }}>
+                            <Button
+                                variant="outlined"
+                                color="error"
+                                startIcon={<CloseIcon />}
+                                onClick={() => markCurrentFlashcard(false)}
+                                disabled={!currentFlashcard}
+                            >
+                                Need practice
+                            </Button>
+                            <Tooltip title={currentFlashcard?.isStarred ? "Remove star" : "Star card"}>
+                                <IconButton onClick={toggleCurrentStar} disabled={!currentFlashcard}>
+                                    {currentFlashcard?.isStarred ? <StarIcon color="warning" /> : <StarBorderIcon />}
+                                </IconButton>
+                            </Tooltip>
+                            <Button
+                                variant="contained"
+                                color="success"
+                                startIcon={<CheckCircleOutlineIcon />}
+                                onClick={() => markCurrentFlashcard(true)}
+                                disabled={!currentFlashcard}
+                            >
+                                I know it
+                            </Button>
+                        </Stack>
+
+                        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 2 }}>
+                            Card {visibleEntries.length === 0 ? 0 : currentIndex + 1} of {visibleEntries.length} - Use arrow keys to navigate
+                        </Typography>
+                    </>
+                ) : (
+                    <Box sx={{ maxWidth: 720, mx: 'auto' }}>
+                        {currentLearnFlashcard ? (
+                            <Paper sx={{ p: 3, border: '1px solid #ddd' }}>
+                                <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', rowGap: 1 }}>
+                                    <Chip label={learnQuestionType === "written" ? "Type answer" : "Choose answer"} color="primary" size="small" />
+                                    <Chip label={`${isReversed ? currentLearnFlashcard.targetLanguage : currentLearnFlashcard.sourceLanguage} -> ${isReversed ? currentLearnFlashcard.sourceLanguage : currentLearnFlashcard.targetLanguage}`} size="small" variant="outlined" />
+                                    {currentLearnFlashcard.level && <Chip label={currentLearnFlashcard.level} size="small" variant="outlined" />}
+                                </Stack>
+
+                                <Typography variant="overline" color="text.secondary">
+                                    Translate
+                                </Typography>
+                                <Typography variant="h4" sx={{ mt: 1, mb: 3 }}>
+                                    {learnQuestion}
+                                </Typography>
+
+                                {learnQuestionType === "written" ? (
+                                    <Stack spacing={2}>
+                                        <TextField
+                                            label="Your answer"
+                                            value={writtenAnswer}
+                                            onChange={(event) => setWrittenAnswer(event.target.value)}
+                                            onKeyDown={(event) => {
+                                                if (event.key === "Enter" && writtenAnswer.trim()) {
+                                                    checkLearnAnswer(writtenAnswer);
+                                                }
+                                            }}
+                                            disabled={Boolean(learnResult)}
+                                            fullWidth
+                                        />
+                                        <Button
+                                            variant="contained"
+                                            onClick={() => checkLearnAnswer(writtenAnswer)}
+                                            disabled={!writtenAnswer.trim() || Boolean(learnResult)}
+                                        >
+                                            Check
+                                        </Button>
+                                    </Stack>
+                                ) : (
+                                    <Stack spacing={1}>
+                                        {answerOptions.map(option => (
+                                            <Button
+                                                key={option}
+                                                variant={selectedChoice === option ? "contained" : "outlined"}
+                                                onClick={() => {
+                                                    setSelectedChoice(option);
+                                                    checkLearnAnswer(option);
+                                                }}
+                                                disabled={Boolean(learnResult)}
+                                                sx={{ justifyContent: 'flex-start', textAlign: 'left' }}
+                                            >
+                                                {option}
+                                            </Button>
+                                        ))}
+                                    </Stack>
+                                )}
+
+                                {learnResult && (
+                                    <Alert severity={learnResult.isCorrect ? "success" : "error"} sx={{ mt: 2 }}>
+                                        {learnResult.isCorrect ? "Correct" : `Correct answer: ${learnResult.correctAnswer}`}
+                                    </Alert>
+                                )}
+
+                                {currentLearnFlashcard.example && (
+                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 2, fontStyle: 'italic' }}>
+                                        {currentLearnFlashcard.example}
+                                    </Typography>
+                                )}
+
+                                <Stack direction="row" spacing={1} sx={{ justifyContent: 'space-between', mt: 3 }}>
+                                    <Button
+                                        variant="outlined"
+                                        onClick={() => setLearnIndex(Math.max(learnIndex - 1, 0))}
+                                        disabled={learnIndex === 0}
+                                    >
+                                        Previous
+                                    </Button>
+                                    <Button
+                                        variant="contained"
+                                        onClick={goToNextLearnQuestion}
+                                        disabled={!learnResult}
+                                    >
+                                        Next
+                                    </Button>
+                                </Stack>
+                            </Paper>
                         ) : (
                             <Paper sx={{ p: 4, textAlign: 'center', border: '1px dashed #bbb' }}>
-                                <Typography variant="h6">No cards match this view</Typography>
+                                <Typography variant="h6">No cards match this Learn session</Typography>
                             </Paper>
                         )}
+
+                        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 2 }}>
+                            Question {visibleEntries.length === 0 ? 0 : learnIndex + 1} of {visibleEntries.length}
+                        </Typography>
                     </Box>
-
-                    <Button
-                        variant="outlined"
-                        onClick={goToNext}
-                        disabled={currentIndex === visibleEntries.length - 1 || visibleEntries.length === 0}
-                    >
-                        <ArrowForwardIosIcon/>
-                    </Button>
-                </Box>
-
-                <Stack direction="row" spacing={1} sx={{ justifyContent: 'center', mt: 2, flexWrap: 'wrap', rowGap: 1 }}>
-                    <Button
-                        variant="outlined"
-                        color="error"
-                        startIcon={<CloseIcon />}
-                        onClick={() => markCurrentFlashcard(false)}
-                        disabled={!currentFlashcard}
-                    >
-                        Need practice
-                    </Button>
-                    <Tooltip title={currentFlashcard?.isStarred ? "Remove star" : "Star card"}>
-                        <IconButton onClick={toggleCurrentStar} disabled={!currentFlashcard}>
-                            {currentFlashcard?.isStarred ? <StarIcon color="warning" /> : <StarBorderIcon />}
-                        </IconButton>
-                    </Tooltip>
-                    <Button
-                        variant="contained"
-                        color="success"
-                        startIcon={<CheckCircleOutlineIcon />}
-                        onClick={() => markCurrentFlashcard(true)}
-                        disabled={!currentFlashcard}
-                    >
-                        I know it
-                    </Button>
-                </Stack>
-
-                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 2 }}>
-                    Card {visibleEntries.length === 0 ? 0 : currentIndex + 1} of {visibleEntries.length} - Use arrow keys to navigate
-                </Typography>
+                )}
             </Paper>
 
             <Paper sx={{ p: 3, border: '1px solid #ddd' }}>
