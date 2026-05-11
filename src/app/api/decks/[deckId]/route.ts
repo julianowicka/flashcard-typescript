@@ -1,6 +1,6 @@
 import {NextResponse} from "next/server";
 import {getCurrentUserId} from "@/lib/current-user";
-import {canViewDeck} from "@/lib/deck-access";
+import {getDeckAccess} from "@/lib/deck-access";
 import {forbidden, notFound} from "@/lib/api-errors";
 import {prisma} from "@/lib/prisma";
 
@@ -13,6 +13,15 @@ interface RouteContext {
 export async function GET(_request: Request, context: RouteContext) {
     const currentUserId = await getCurrentUserId();
     const {deckId} = await context.params;
+    const access = await getDeckAccess(deckId, currentUserId);
+
+    if (!access) {
+        return notFound();
+    }
+
+    if (!access.canView) {
+        return forbidden();
+    }
 
     const deck = await prisma.deck.findFirst({
         where: {
@@ -62,17 +71,6 @@ export async function GET(_request: Request, context: RouteContext) {
 
     if (!deck) {
         return notFound();
-    }
-
-    const shareRole = deck.shares[0]?.role ?? null;
-
-    if (!canViewDeck({
-        ownerId: deck.ownerId,
-        currentUserId,
-        visibility: deck.visibility,
-        shareRole,
-    })) {
-        return forbidden();
     }
 
     return NextResponse.json({
