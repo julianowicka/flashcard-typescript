@@ -1,14 +1,39 @@
-import React, {ChangeEventHandler, useEffect, useState} from 'react';
+import React, {ChangeEventHandler, useEffect, useMemo, useState} from 'react';
 import './App.css';
 import Flashcard from "./components/Flashcard/Flashcard";
-import {Box, Button, Chip, Container, LinearProgress, Paper, Stack, TextField, Typography} from "@mui/material";
+import {
+    Box,
+    Button,
+    Chip,
+    Container,
+    IconButton,
+    LinearProgress,
+    Paper,
+    Stack,
+    TextField,
+    Tooltip,
+    Typography
+} from "@mui/material";
 import {DeckModel, FlashcardModel} from "./components/Flashcard/FlashcardModel";
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import AddIcon from '@mui/icons-material/Add';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import CloseIcon from '@mui/icons-material/Close';
+import ShuffleIcon from '@mui/icons-material/Shuffle';
+import StarIcon from '@mui/icons-material/Star';
+import StarBorderIcon from '@mui/icons-material/StarBorder';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import {mockDecks} from "./components/Flashcard/util/mockFlashcards";
 
 const STORAGE_KEY = "flashcard-learning-decks";
+const EMPTY_FLASHCARDS: FlashcardModel[] = [];
+
+interface StudyEntry {
+    flashcard: FlashcardModel,
+    deckIndex: number,
+}
 
 const loadInitialDecks = (): DeckModel[] => {
     const fallbackDecks = mockDecks();
@@ -27,26 +52,75 @@ const loadInitialDecks = (): DeckModel[] => {
     }
 };
 
+const shuffleIndexes = (indexes: number[]): number[] => {
+    const shuffledIndexes = [...indexes];
+
+    for (let i = shuffledIndexes.length - 1; i > 0; i -= 1) {
+        const randomIndex = Math.floor(Math.random() * (i + 1));
+        [shuffledIndexes[i], shuffledIndexes[randomIndex]] = [shuffledIndexes[randomIndex], shuffledIndexes[i]];
+    }
+
+    return shuffledIndexes;
+};
+
 function App() {
     const [decks, setDecks] = useState<DeckModel[]>(loadInitialDecks);
     const [selectedDeckId, setSelectedDeckId] = useState(decks[0]?.id ?? "");
     const [currentIndex, setCurrentIndex] = useState(0);
     const [questionInputValue, setQuestionInputValue] = useState("");
     const [answerInputValue, setAnswerInputValue] = useState("");
+    const [isReversed, setIsReversed] = useState(false);
+    const [isShuffled, setIsShuffled] = useState(false);
+    const [shuffleOrder, setShuffleOrder] = useState<number[]>([]);
+    const [showStarredOnly, setShowStarredOnly] = useState(false);
+    const [showNeedsPracticeOnly, setShowNeedsPracticeOnly] = useState(false);
 
     const currentDeck = decks.find(deck => deck.id === selectedDeckId) ?? decks[0];
-    const flashcards = currentDeck?.flashcards ?? [];
-    const currentFlashcard = flashcards[currentIndex] ?? flashcards[0];
+    const flashcards = currentDeck?.flashcards ?? EMPTY_FLASHCARDS;
+
+    const filteredEntries = useMemo<StudyEntry[]>(() => {
+        return flashcards
+            .map((flashcard, deckIndex) => ({flashcard, deckIndex}))
+            .filter(entry => !showStarredOnly || entry.flashcard.isStarred)
+            .filter(entry => {
+                if (!showNeedsPracticeOnly) {
+                    return true;
+                }
+
+                return !entry.flashcard.isLearned || (entry.flashcard.incorrectCount ?? 0) > 0;
+            });
+    }, [flashcards, showNeedsPracticeOnly, showStarredOnly]);
+
+    const visibleEntries = useMemo<StudyEntry[]>(() => {
+        if (!isShuffled) {
+            return filteredEntries;
+        }
+
+        const orderedEntries = shuffleOrder
+            .map(deckIndex => filteredEntries.find(entry => entry.deckIndex === deckIndex))
+            .filter((entry): entry is StudyEntry => Boolean(entry));
+        const missingEntries = filteredEntries.filter(entry => !shuffleOrder.includes(entry.deckIndex));
+
+        return [...orderedEntries, ...missingEntries];
+    }, [filteredEntries, isShuffled, shuffleOrder]);
+
+    const currentEntry = visibleEntries[currentIndex];
+    const currentFlashcard = currentEntry?.flashcard;
+    const displayedQuestion = isReversed ? currentFlashcard?.answer : currentFlashcard?.question;
+    const displayedAnswer = isReversed ? currentFlashcard?.question : currentFlashcard?.answer;
+    const learnedCount = flashcards.filter(card => card.isLearned).length;
+    const starredCount = flashcards.filter(card => card.isStarred).length;
+    const needsPracticeCount = flashcards.filter(card => !card.isLearned || (card.incorrectCount ?? 0) > 0).length;
 
     useEffect(() => {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(decks));
     }, [decks]);
 
     useEffect(() => {
-        if (currentIndex > flashcards.length - 1) {
-            setCurrentIndex(Math.max(flashcards.length - 1, 0));
+        if (currentIndex > visibleEntries.length - 1) {
+            setCurrentIndex(Math.max(visibleEntries.length - 1, 0));
         }
-    }, [currentIndex, flashcards.length]);
+    }, [currentIndex, visibleEntries.length]);
 
     const updateSelectedDeck = (updater: (flashcards: FlashcardModel[]) => FlashcardModel[]) => {
         setDecks(previousDecks => previousDecks.map(deck => {
@@ -61,26 +135,61 @@ function App() {
         }));
     };
 
-    const handleSelectDeck = (deckId: string) => {
-        setSelectedDeckId(deckId);
-        setCurrentIndex(0);
-    };
-
-    const toggleIsLearned = (index: number, checked: boolean) => {
+    const updateFlashcardAtDeckIndex = (deckIndex: number, updater: (flashcard: FlashcardModel) => FlashcardModel) => {
         updateSelectedDeck(previousFlashcards => previousFlashcards.map((flashcard, flashcardIndex) => {
-            if (flashcardIndex !== index) {
+            if (flashcardIndex !== deckIndex) {
                 return flashcard;
             }
 
-            return {
-                ...flashcard,
-                isLearned: checked,
-            };
+            return updater(flashcard);
+        }));
+    };
+
+    const handleSelectDeck = (deckId: string) => {
+        setSelectedDeckId(deckId);
+        setCurrentIndex(0);
+        setShuffleOrder([]);
+    };
+
+    const toggleIsLearned = (index: number, checked: boolean) => {
+        updateFlashcardAtDeckIndex(index, flashcard => ({
+            ...flashcard,
+            isLearned: checked,
+            lastReviewedAt: new Date().toISOString(),
+        }));
+    };
+
+    const markCurrentFlashcard = (isKnown: boolean) => {
+        if (!currentEntry) {
+            return;
+        }
+
+        updateFlashcardAtDeckIndex(currentEntry.deckIndex, flashcard => ({
+            ...flashcard,
+            isLearned: isKnown,
+            correctCount: (flashcard.correctCount ?? 0) + (isKnown ? 1 : 0),
+            incorrectCount: (flashcard.incorrectCount ?? 0) + (isKnown ? 0 : 1),
+            lastReviewedAt: new Date().toISOString(),
+        }));
+
+        if (currentIndex < visibleEntries.length - 1) {
+            setCurrentIndex(currentIndex + 1);
+        }
+    };
+
+    const toggleCurrentStar = () => {
+        if (!currentEntry) {
+            return;
+        }
+
+        updateFlashcardAtDeckIndex(currentEntry.deckIndex, flashcard => ({
+            ...flashcard,
+            isStarred: !flashcard.isStarred,
         }));
     };
 
     const goToNext = () => {
-        if (currentIndex < flashcards.length - 1) {
+        if (currentIndex < visibleEntries.length - 1) {
             setCurrentIndex(currentIndex + 1);
         }
     };
@@ -112,6 +221,9 @@ function App() {
                     targetLanguage: currentDeck.targetLanguage,
                     level: currentDeck.level,
                     isLearned: false,
+                    isStarred: false,
+                    correctCount: 0,
+                    incorrectCount: 0,
                 }
             ]));
             setAnswerInputValue("");
@@ -119,8 +231,24 @@ function App() {
         }
     };
 
+    const toggleShuffle = () => {
+        const nextIsShuffled = !isShuffled;
+        setIsShuffled(nextIsShuffled);
+        setShuffleOrder(nextIsShuffled ? shuffleIndexes(filteredEntries.map(entry => entry.deckIndex)) : []);
+        setCurrentIndex(0);
+    };
+
+    const toggleStarredFilter = () => {
+        setShowStarredOnly(!showStarredOnly);
+        setCurrentIndex(0);
+    };
+
+    const toggleNeedsPracticeFilter = () => {
+        setShowNeedsPracticeOnly(!showNeedsPracticeOnly);
+        setCurrentIndex(0);
+    };
+
     const getProgress = () => {
-        const learnedCount = flashcards.filter(card => card.isLearned).length;
         return flashcards.length > 0 ? (learnedCount / flashcards.length) * 100 : 0;
     };
 
@@ -173,13 +301,17 @@ function App() {
                 <Box sx={{ mt: 3, mb: 2 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                         <Typography variant="body2" color="text.secondary">
-                            Progress: {flashcards.filter(card => card.isLearned).length} / {flashcards.length} cards learned
+                            Progress: {learnedCount} / {flashcards.length} cards learned
                         </Typography>
-                        <Chip
-                            label={`${Math.round(getProgress())}% Complete`}
-                            color={getProgress() === 100 ? 'success' : 'primary'}
-                            size="small"
-                        />
+                        <Stack direction="row" spacing={1}>
+                            <Chip label={`${starredCount} starred`} size="small" variant="outlined" />
+                            <Chip label={`${needsPracticeCount} to practice`} size="small" variant="outlined" />
+                            <Chip
+                                label={`${Math.round(getProgress())}% Complete`}
+                                color={getProgress() === 100 ? 'success' : 'primary'}
+                                size="small"
+                            />
+                        </Stack>
                     </Box>
                     <LinearProgress
                         variant="determinate"
@@ -189,6 +321,29 @@ function App() {
             </Box>
 
             <Paper sx={{ p: 3, mb: 4, border: '1px solid #ddd' }}>
+                <Stack direction="row" spacing={1} sx={{ justifyContent: 'center', flexWrap: 'wrap', rowGap: 1, mb: 2 }}>
+                    <Tooltip title="Reverse direction">
+                        <IconButton color={isReversed ? 'primary' : 'default'} onClick={() => setIsReversed(!isReversed)}>
+                            <SwapHorizIcon />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Shuffle cards">
+                        <IconButton color={isShuffled ? 'primary' : 'default'} onClick={toggleShuffle}>
+                            <ShuffleIcon />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Show starred only">
+                        <IconButton color={showStarredOnly ? 'primary' : 'default'} onClick={toggleStarredFilter}>
+                            <StarIcon />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Show cards to practice">
+                        <IconButton color={showNeedsPracticeOnly ? 'primary' : 'default'} onClick={toggleNeedsPracticeFilter}>
+                            <FilterAltIcon />
+                        </IconButton>
+                    </Tooltip>
+                </Stack>
+
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
                     <Button
                         variant="outlined"
@@ -199,32 +354,62 @@ function App() {
                     </Button>
 
                     <Box sx={{ flex: 1, maxWidth: 600 }}>
-                        {currentFlashcard && (
+                        {currentFlashcard ? (
                             <Flashcard
-                                answer={currentFlashcard.answer}
-                                question={currentFlashcard.question}
+                                answer={displayedAnswer ?? ""}
+                                question={displayedQuestion ?? ""}
                                 isLearned={currentFlashcard.isLearned}
                                 toggleIsLearnedFunction={toggleIsLearned}
-                                flashcardIndex={currentIndex}
-                                sourceLanguage={currentFlashcard.sourceLanguage}
-                                targetLanguage={currentFlashcard.targetLanguage}
+                                flashcardIndex={currentEntry.deckIndex}
+                                sourceLanguage={isReversed ? currentFlashcard.targetLanguage : currentFlashcard.sourceLanguage}
+                                targetLanguage={isReversed ? currentFlashcard.sourceLanguage : currentFlashcard.targetLanguage}
                                 example={currentFlashcard.example}
                                 level={currentFlashcard.level}
                             />
+                        ) : (
+                            <Paper sx={{ p: 4, textAlign: 'center', border: '1px dashed #bbb' }}>
+                                <Typography variant="h6">No cards match this view</Typography>
+                            </Paper>
                         )}
                     </Box>
 
                     <Button
                         variant="outlined"
                         onClick={goToNext}
-                        disabled={currentIndex === flashcards.length - 1}
+                        disabled={currentIndex === visibleEntries.length - 1 || visibleEntries.length === 0}
                     >
                         <ArrowForwardIosIcon/>
                     </Button>
                 </Box>
 
+                <Stack direction="row" spacing={1} sx={{ justifyContent: 'center', mt: 2, flexWrap: 'wrap', rowGap: 1 }}>
+                    <Button
+                        variant="outlined"
+                        color="error"
+                        startIcon={<CloseIcon />}
+                        onClick={() => markCurrentFlashcard(false)}
+                        disabled={!currentFlashcard}
+                    >
+                        Need practice
+                    </Button>
+                    <Tooltip title={currentFlashcard?.isStarred ? "Remove star" : "Star card"}>
+                        <IconButton onClick={toggleCurrentStar} disabled={!currentFlashcard}>
+                            {currentFlashcard?.isStarred ? <StarIcon color="warning" /> : <StarBorderIcon />}
+                        </IconButton>
+                    </Tooltip>
+                    <Button
+                        variant="contained"
+                        color="success"
+                        startIcon={<CheckCircleOutlineIcon />}
+                        onClick={() => markCurrentFlashcard(true)}
+                        disabled={!currentFlashcard}
+                    >
+                        I know it
+                    </Button>
+                </Stack>
+
                 <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 2 }}>
-                    Card {currentIndex + 1} of {flashcards.length} - Use arrow keys to navigate
+                    Card {visibleEntries.length === 0 ? 0 : currentIndex + 1} of {visibleEntries.length} - Use arrow keys to navigate
                 </Typography>
             </Paper>
 

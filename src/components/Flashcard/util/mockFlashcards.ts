@@ -78,6 +78,9 @@ const languageCard = (
     tags,
     level,
     isLearned: false,
+    isStarred: false,
+    correctCount: 0,
+    incorrectCount: 0,
 });
 
 export const mockDecks = (): DeckModel[] => [

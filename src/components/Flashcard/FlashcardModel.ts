@@ -9,6 +9,10 @@ export interface FlashcardModel {
     example?: string,
     tags?: string[],
     level?: string,
+    isStarred?: boolean,
+    correctCount?: number,
+    incorrectCount?: number,
+    lastReviewedAt?: string,
 }
 
 export interface DeckModel {
