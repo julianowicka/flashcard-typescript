@@ -1,0 +1,269 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum DeckVisibility {
+  PRIVATE
+  SHARED
+  PUBLIC
+}
+
+enum DeckShareRole {
+  VIEWER
+  EDITOR
+}
+
+enum StudyMode {
+  FLASHCARDS
+  WRITE
+  LEARN
+  TEST
+  MATCH
+  REVIEW
+}
+
+enum StudyAnswerType {
+  WRITTEN
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  MANUAL
+}
+
+enum CefrLevel {
+  A1
+  A2
+  B1
+  B2
+  C1
+  C2
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+
+  accounts Account[]
+  sessions Session[]
+
+  decks         Deck[]
+  deckShares    DeckShare[]
+  progress      StudyProgress[]
+  studySessions StudySession[]
+  studyAnswers  StudyAnswer[]
+  createdTags   Tag[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+model Deck {
+  id             String         @id @default(cuid())
+  ownerId        String
+  title          String
+  description    String?
+  sourceLanguage String
+  targetLanguage String
+  cefrLevel      CefrLevel?
+  visibility     DeckVisibility @default(PRIVATE)
+
+  owner         User           @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  flashcards    Flashcard[]
+  shares        DeckShare[]
+  tags          DeckTag[]
+  studySessions StudySession[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([ownerId, deletedAt])
+  @@index([visibility, deletedAt])
+  @@index([sourceLanguage, targetLanguage])
+  @@index([cefrLevel])
+  @@index([updatedAt])
+}
+
+model DeckShare {
+  id     String        @id @default(cuid())
+  deckId String
+  userId String
+  role   DeckShareRole @default(VIEWER)
+
+  deck Deck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([deckId, userId])
+  @@index([userId, role])
+  @@index([deckId])
+}
+
+model Flashcard {
+  id          String     @id @default(cuid())
+  deckId      String
+  front       String
+  back        String
+  hint        String?
+  explanation String?
+  imageUrl    String?
+  audioUrl    String?
+  cefrLevel   CefrLevel?
+  position    Int        @default(0)
+
+  deck     Deck            @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  progress StudyProgress[]
+  answers  StudyAnswer[]
+  tags     FlashcardTag[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([deckId, deletedAt])
+  @@index([deckId, position])
+  @@index([cefrLevel])
+}
+
+model StudyProgress {
+  id              String    @id @default(cuid())
+  userId          String
+  flashcardId     String
+  easeFactor      Float     @default(2.5)
+  interval        Int       @default(0)
+  repetitionCount Int       @default(0)
+  correctCount    Int       @default(0)
+  wrongCount      Int       @default(0)
+  lastReviewedAt  DateTime?
+  nextReviewAt    DateTime?
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flashcard Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, flashcardId])
+  @@index([userId, nextReviewAt])
+  @@index([userId, lastReviewedAt])
+  @@index([flashcardId])
+}
+
+model StudySession {
+  id         String    @id @default(cuid())
+  userId     String
+  deckId     String
+  mode       StudyMode
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deck    Deck          @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  answers StudyAnswer[]
+
+  @@index([userId, startedAt])
+  @@index([userId, deckId, startedAt])
+  @@index([deckId, startedAt])
+}
+
+model StudyAnswer {
+  id                    String          @id @default(cuid())
+  sessionId             String
+  userId                String
+  flashcardId           String
+  answer                String
+  normalizedAnswer      String?
+  correctAnswerSnapshot String
+  isCorrect             Boolean
+  answerType            StudyAnswerType
+  responseTimeMs        Int?
+  createdAt             DateTime        @default(now())
+
+  session   StudySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  flashcard Flashcard    @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([sessionId])
+  @@index([flashcardId])
+  @@index([userId, flashcardId, createdAt])
+}
+
+model Tag {
+  id          String  @id @default(cuid())
+  name        String
+  slug        String  @unique
+  createdById String?
+
+  createdBy  User?          @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  decks      DeckTag[]
+  flashcards FlashcardTag[]
+
+  createdAt DateTime @default(now())
+
+  @@index([createdById])
+}
+
+model DeckTag {
+  deckId String
+  tagId  String
+
+  deck Deck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([deckId, tagId])
+  @@index([tagId])
+}
+
+model FlashcardTag {
+  flashcardId String
+  tagId       String
+
+  flashcard Flashcard @relation(fields: [flashcardId], references: [id], onDelete: Cascade)
+  tag       Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([flashcardId, tagId])
+  @@index([tagId])
+}
