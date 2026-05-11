@@ -1,6 +1,7 @@
+"use client";
+
 import React, {ChangeEventHandler, useEffect, useMemo, useState} from 'react';
-import './App.css';
-import Flashcard from "./components/Flashcard/Flashcard";
+import Flashcard from "../../components/Flashcard/Flashcard";
 import {
     Box,
     Button,
@@ -15,7 +16,7 @@ import {
     Tooltip,
     Typography
 } from "@mui/material";
-import {DeckModel, FlashcardModel} from "./components/Flashcard/FlashcardModel";
+import {DeckModel, FlashcardModel} from "../../components/Flashcard/FlashcardModel";
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import AddIcon from '@mui/icons-material/Add';
@@ -26,7 +27,7 @@ import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import FilterAltIcon from '@mui/icons-material/FilterAlt';
-import {mockDecks} from "./components/Flashcard/util/mockFlashcards";
+import {mockDecks} from "../../components/Flashcard/util/mockFlashcards";
 
 const STORAGE_KEY = "flashcard-learning-decks";
 const EMPTY_FLASHCARDS: FlashcardModel[] = [];
@@ -97,7 +98,7 @@ const getLearningText = (flashcard: FlashcardModel, isReversed: boolean, side: "
     return isReversed ? flashcard.question : flashcard.answer;
 };
 
-function App() {
+function StudyApp() {
     const [decks, setDecks] = useState<DeckModel[]>(loadInitialDecks);
     const [selectedDeckId, setSelectedDeckId] = useState(decks[0]?.id ?? "");
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -840,4 +841,4 @@ function App() {
     );
 }
 
-export default App;
+export default StudyApp;
