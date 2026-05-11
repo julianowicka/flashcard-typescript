@@ -36,11 +36,19 @@ interface StudyEntry {
     deckIndex: number,
 }
 
-type StudyMode = "flashcards" | "learn";
+type StudyMode = "flashcards" | "learn" | "test";
 
 interface LearnResult {
     isCorrect: boolean,
     correctAnswer: string,
+}
+
+interface TestAnswer {
+    deckIndex: number,
+    question: string,
+    correctAnswer: string,
+    userAnswer: string,
+    isCorrect: boolean,
 }
 
 const loadInitialDecks = (): DeckModel[] => {
@@ -105,6 +113,10 @@ function App() {
     const [writtenAnswer, setWrittenAnswer] = useState("");
     const [selectedChoice, setSelectedChoice] = useState("");
     const [learnResult, setLearnResult] = useState<LearnResult | null>(null);
+    const [testIndex, setTestIndex] = useState(0);
+    const [testWrittenAnswer, setTestWrittenAnswer] = useState("");
+    const [testResults, setTestResults] = useState<TestAnswer[]>([]);
+    const [isTestFinished, setIsTestFinished] = useState(false);
 
     const currentDeck = decks.find(deck => deck.id === selectedDeckId) ?? decks[0];
     const flashcards = currentDeck?.flashcards ?? EMPTY_FLASHCARDS;
@@ -144,6 +156,12 @@ function App() {
     const learnQuestion = currentLearnFlashcard ? getLearningText(currentLearnFlashcard, isReversed, "question") : "";
     const learnAnswer = currentLearnFlashcard ? getLearningText(currentLearnFlashcard, isReversed, "answer") : "";
     const learnQuestionType = learnIndex % 2 === 0 ? "written" : "choice";
+    const currentTestEntry = visibleEntries[testIndex];
+    const currentTestFlashcard = currentTestEntry?.flashcard;
+    const testQuestion = currentTestFlashcard ? getLearningText(currentTestFlashcard, isReversed, "question") : "";
+    const testAnswer = currentTestFlashcard ? getLearningText(currentTestFlashcard, isReversed, "answer") : "";
+    const testQuestionType = testIndex % 2 === 0 ? "written" : "choice";
+    const testScore = testResults.filter(result => result.isCorrect).length;
     const learnedCount = flashcards.filter(card => card.isLearned).length;
     const starredCount = flashcards.filter(card => card.isStarred).length;
     const needsPracticeCount = flashcards.filter(card => !card.isLearned || (card.incorrectCount ?? 0) > 0).length;
@@ -165,6 +183,23 @@ function App() {
             .map(index => [learnAnswer, ...selectedDistractors][index]);
     }, [currentLearnFlashcard, isReversed, learnAnswer, visibleEntries]);
 
+    const testAnswerOptions = useMemo<string[]>(() => {
+        if (!currentTestFlashcard) {
+            return [];
+        }
+
+        const distractors = visibleEntries
+            .map(entry => getLearningText(entry.flashcard, isReversed, "answer"))
+            .filter(answer => normalizeAnswer(answer) !== normalizeAnswer(testAnswer));
+        const uniqueDistractors = Array.from(new Set(distractors));
+        const selectedDistractors = shuffleIndexes(uniqueDistractors.map((_, index) => index))
+            .slice(0, 3)
+            .map(index => uniqueDistractors[index]);
+        const options = [testAnswer, ...selectedDistractors];
+
+        return shuffleIndexes(options.map((_, index) => index)).map(index => options[index]);
+    }, [currentTestFlashcard, isReversed, testAnswer, visibleEntries]);
+
     useEffect(() => {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(decks));
     }, [decks]);
@@ -182,10 +217,20 @@ function App() {
     }, [learnIndex, visibleEntries.length]);
 
     useEffect(() => {
+        if (testIndex > visibleEntries.length - 1) {
+            setTestIndex(Math.max(visibleEntries.length - 1, 0));
+        }
+    }, [testIndex, visibleEntries.length]);
+
+    useEffect(() => {
         setWrittenAnswer("");
         setSelectedChoice("");
         setLearnResult(null);
     }, [learnIndex, learnQuestion, learnAnswer, studyMode]);
+
+    useEffect(() => {
+        setTestWrittenAnswer("");
+    }, [testIndex, testQuestion, testAnswer, studyMode]);
 
     const updateSelectedDeck = (updater: (flashcards: FlashcardModel[]) => FlashcardModel[]) => {
         setDecks(previousDecks => previousDecks.map(deck => {
@@ -214,6 +259,7 @@ function App() {
         setSelectedDeckId(deckId);
         setCurrentIndex(0);
         setLearnIndex(0);
+        resetTest();
         setShuffleOrder([]);
     };
 
@@ -233,6 +279,13 @@ function App() {
             incorrectCount: (flashcard.incorrectCount ?? 0) + (isCorrect ? 0 : 1),
             lastReviewedAt: new Date().toISOString(),
         }));
+    };
+
+    const resetTest = () => {
+        setTestIndex(0);
+        setTestWrittenAnswer("");
+        setTestResults([]);
+        setIsTestFinished(false);
     };
 
     const markCurrentFlashcard = (isKnown: boolean) => {
@@ -265,6 +318,31 @@ function App() {
             setLearnIndex(learnIndex + 1);
         } else {
             setLearnIndex(0);
+        }
+    };
+
+    const submitTestAnswer = (answer: string) => {
+        if (!currentTestEntry || isTestFinished) {
+            return;
+        }
+
+        const isCorrect = normalizeAnswer(answer) === normalizeAnswer(testAnswer);
+        recordAnswer(currentTestEntry.deckIndex, isCorrect);
+        setTestResults(previousResults => ([
+            ...previousResults,
+            {
+                deckIndex: currentTestEntry.deckIndex,
+                question: testQuestion,
+                correctAnswer: testAnswer,
+                userAnswer: answer,
+                isCorrect,
+            }
+        ]));
+
+        if (testIndex < visibleEntries.length - 1) {
+            setTestIndex(testIndex + 1);
+        } else {
+            setIsTestFinished(true);
         }
     };
 
@@ -328,18 +406,21 @@ function App() {
         setShuffleOrder(nextIsShuffled ? shuffleIndexes(filteredEntries.map(entry => entry.deckIndex)) : []);
         setCurrentIndex(0);
         setLearnIndex(0);
+        resetTest();
     };
 
     const toggleStarredFilter = () => {
         setShowStarredOnly(!showStarredOnly);
         setCurrentIndex(0);
         setLearnIndex(0);
+        resetTest();
     };
 
     const toggleNeedsPracticeFilter = () => {
         setShowNeedsPracticeOnly(!showNeedsPracticeOnly);
         setCurrentIndex(0);
         setLearnIndex(0);
+        resetTest();
     };
 
     const getProgress = () => {
@@ -427,6 +508,15 @@ function App() {
                         onClick={() => setStudyMode("learn")}
                     >
                         Learn
+                    </Button>
+                    <Button
+                        variant={studyMode === "test" ? "contained" : "outlined"}
+                        onClick={() => {
+                            setStudyMode("test");
+                            resetTest();
+                        }}
+                    >
+                        Test
                     </Button>
                 </Stack>
 
@@ -523,7 +613,7 @@ function App() {
                             Card {visibleEntries.length === 0 ? 0 : currentIndex + 1} of {visibleEntries.length} - Use arrow keys to navigate
                         </Typography>
                     </>
-                ) : (
+                ) : studyMode === "learn" ? (
                     <Box sx={{ maxWidth: 720, mx: 'auto' }}>
                         {currentLearnFlashcard ? (
                             <Paper sx={{ p: 3, border: '1px solid #ddd' }}>
@@ -618,6 +708,93 @@ function App() {
 
                         <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 2 }}>
                             Question {visibleEntries.length === 0 ? 0 : learnIndex + 1} of {visibleEntries.length}
+                        </Typography>
+                    </Box>
+                ) : (
+                    <Box sx={{ maxWidth: 760, mx: 'auto' }}>
+                        {isTestFinished ? (
+                            <Paper sx={{ p: 3, border: '1px solid #ddd' }}>
+                                <Typography variant="overline" color="text.secondary">
+                                    Test result
+                                </Typography>
+                                <Typography variant="h3" sx={{ mt: 1 }}>
+                                    {testScore} / {testResults.length}
+                                </Typography>
+                                <LinearProgress
+                                    variant="determinate"
+                                    value={testResults.length > 0 ? (testScore / testResults.length) * 100 : 0}
+                                    sx={{ my: 2 }}
+                                />
+                                <Stack spacing={1}>
+                                    {testResults.map((result, index) => (
+                                        <Alert key={`${result.deckIndex}-${index}`} severity={result.isCorrect ? "success" : "error"}>
+                                            {result.question} - your answer: {result.userAnswer || "empty"}; correct: {result.correctAnswer}
+                                        </Alert>
+                                    ))}
+                                </Stack>
+                                <Button variant="contained" onClick={resetTest} sx={{ mt: 3 }}>
+                                    Retake test
+                                </Button>
+                            </Paper>
+                        ) : currentTestFlashcard ? (
+                            <Paper sx={{ p: 3, border: '1px solid #ddd' }}>
+                                <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', rowGap: 1 }}>
+                                    <Chip label={testQuestionType === "written" ? "Written test" : "Multiple choice"} color="primary" size="small" />
+                                    <Chip label={`${isReversed ? currentTestFlashcard.targetLanguage : currentTestFlashcard.sourceLanguage} -> ${isReversed ? currentTestFlashcard.sourceLanguage : currentTestFlashcard.targetLanguage}`} size="small" variant="outlined" />
+                                    {currentTestFlashcard.level && <Chip label={currentTestFlashcard.level} size="small" variant="outlined" />}
+                                </Stack>
+
+                                <Typography variant="overline" color="text.secondary">
+                                    Test question
+                                </Typography>
+                                <Typography variant="h4" sx={{ mt: 1, mb: 3 }}>
+                                    {testQuestion}
+                                </Typography>
+
+                                {testQuestionType === "written" ? (
+                                    <Stack spacing={2}>
+                                        <TextField
+                                            label="Test answer"
+                                            value={testWrittenAnswer}
+                                            onChange={(event) => setTestWrittenAnswer(event.target.value)}
+                                            onKeyDown={(event) => {
+                                                if (event.key === "Enter" && testWrittenAnswer.trim()) {
+                                                    submitTestAnswer(testWrittenAnswer);
+                                                }
+                                            }}
+                                            fullWidth
+                                        />
+                                        <Button
+                                            variant="contained"
+                                            onClick={() => submitTestAnswer(testWrittenAnswer)}
+                                            disabled={!testWrittenAnswer.trim()}
+                                        >
+                                            Submit answer
+                                        </Button>
+                                    </Stack>
+                                ) : (
+                                    <Stack spacing={1}>
+                                        {testAnswerOptions.map(option => (
+                                            <Button
+                                                key={option}
+                                                variant="outlined"
+                                                onClick={() => submitTestAnswer(option)}
+                                                sx={{ justifyContent: 'flex-start', textAlign: 'left' }}
+                                            >
+                                                {option}
+                                            </Button>
+                                        ))}
+                                    </Stack>
+                                )}
+                            </Paper>
+                        ) : (
+                            <Paper sx={{ p: 4, textAlign: 'center', border: '1px dashed #bbb' }}>
+                                <Typography variant="h6">No cards match this Test session</Typography>
+                            </Paper>
+                        )}
+
+                        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 2 }}>
+                            Question {visibleEntries.length === 0 ? 0 : Math.min(testIndex + 1, visibleEntries.length)} of {visibleEntries.length}
                         </Typography>
                     </Box>
                 )}

@@ -14,3 +14,10 @@ test('switches to learn mode', () => {
   expect(screen.getByText(/Translate/i)).toBeInTheDocument();
   expect(screen.getByText(/Type answer/i)).toBeInTheDocument();
 });
+
+test('switches to test mode', () => {
+  render(<App />);
+  fireEvent.click(screen.getByRole('button', { name: 'Test' }));
+  expect(screen.getByText(/Test question/i)).toBeInTheDocument();
+  expect(screen.getByText(/Written test/i)).toBeInTheDocument();
+});
