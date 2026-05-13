@@ -1,4 +1,4 @@
-import {createSlug, parseCreateTagInput} from "./tag-validation";
+import {createSlug, parseCreateTagInput, parseTagIdsInput} from "./tag-validation";
 
 describe("tag validation", () => {
     test("creates normalized slugs", () => {
@@ -22,5 +22,19 @@ describe("tag validation", () => {
         expect(() => parseCreateTagInput({
             name: "!!!",
         })).toThrow("name must contain letters or numbers");
+    });
+
+    test("parses unique tag ids", () => {
+        expect(parseTagIdsInput({
+            tagIds: ["tag-1", "tag-1", " tag-2 "],
+        })).toEqual({
+            tagIds: ["tag-1", "tag-2"],
+        });
+    });
+
+    test("rejects invalid tag id lists", () => {
+        expect(() => parseTagIdsInput({
+            tagIds: ["tag-1", ""],
+        })).toThrow("tagIds must contain non-empty strings");
     });
 });
